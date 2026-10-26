@@ -33,7 +33,7 @@ function renderLobby(state) {
     if (!p.online) li.classList.add('off');
     $('player-list').appendChild(li);
   });
-  $('cfg-view').textContent = `Vampir: ${state.cfg.vampire} · Köylü: ${state.cfg.villager}`;
+  $('cfg-view').textContent = `Vampir: ${state.cfg.vampire} · Doktor: ${state.cfg.doctor} · Köylü: ${state.cfg.villager}`;
 }
 
 /* =====================================================
@@ -48,7 +48,8 @@ class Host {
     this.peer = null;
     this.conns = new Map();     // playerId -> DataConnection
     this.players = new Map();   // playerId -> {id,name,host,online}
-    this.cfg = { vampire: 1, villager: 2 };
+    this.cfg = { vampire: 1, doctor: 0, villager: 2 };
+    this.lastProtected = new Map();  // doktor id -> bir önceki gece koruduğu kişi (üst üste aynı kişi yasak)
     // --- Oyun motoru durumu (roller yalnızca burada, asla broadcast edilmez) ---
     this.phase = 'LOBBY';
     this.gameStarted = false;
@@ -201,6 +202,7 @@ class Host {
 
   /* ---------- Oyun kuralları ---------- */
   isVamp(id) { return this.roles.get(id) === 'vampire'; }
+  isDoctor(id) { return this.roles.get(id) === 'doctor'; }
   nameOf(id) { return this.players.get(id).name; }
   allActed(map) { return [...this.alive].every(id => map.has(id)); }
 
@@ -225,12 +227,24 @@ class Host {
   resolveNight() {
     // Yalnızca yaşayan vampirlerin geçerli oyları sayılır; köylü seçimleri sahtedir ve atılır
     const votes = [];
+    const protectedSet = new Set();
     this.nightChoices.forEach((t, id) => {
       if (this.isVamp(id) && this.alive.has(t) && !this.isVamp(t)) votes.push(t);
+    });
+    // Doktor korumalar?: hedef ya??yor olmal? ve bir ?nceki gece korunan ki?i olmamal?
+    [...this.alive].filter(id => this.isDoctor(id)).forEach(id => {
+      const t = this.nightChoices.get(id);
+      if (t && this.alive.has(t) && this.lastProtected.get(id) !== t) { protectedSet.add(t); this.lastProtected.set(id, t); }
+      else this.lastProtected.delete(id);      // se?im yapmad?/ge?ersiz: k?s?t s?f?rlan?r
     });
     let pool = this.tally(votes)[0];
     if (!pool.length) pool = [...this.alive].filter(id => !this.isVamp(id));   // kimse seçmediyse rastgele
     const victim = pool[Math.floor(Math.random() * pool.length)];
+    if (protectedSet.has(victim)) {                                   // doktor kurtard?
+      this.nightVictim = null;
+      this.eventText = '?? Bu gece kimse ?lmedi.';
+      return this.transition('DAY');
+    }
     this.alive.delete(victim);
     this.nightVictim = victim;                                        // yalnızca bu oyuncuya ölüm animasyonu gösterilir
     this.eventText = `🌙 Bu gece ${this.nameOf(victim)} öldürüldü.`;      // rol açıklanmaz
@@ -280,6 +294,7 @@ class Host {
     this.roles.clear(); this.alive.clear(); this.ready.clear();
     this.nightChoices.clear(); this.trialVotes.clear(); this.execVotes.clear();
     this.round = 0; this.eventText = null; this.winner = null; this.nightVictim = null;
+    this.lastProtected.clear();
     this.normalizeCfg(true);
     document.body.className = '';
     sessionStorage.removeItem('vk_role'); myRole = null;
@@ -290,15 +305,15 @@ class Host {
   }
 
   startGame() {
-    const n = this.total(), { vampire, villager } = this.cfg;
-    if (n < 3 || vampire + villager !== n || vampire >= villager) return;
+    const n = this.total(), { vampire, doctor, villager } = this.cfg;
+    if (n < 3 || vampire + doctor + villager !== n || vampire >= doctor + villager) return;
     const ids = [...this.players.keys()];
     for (let i = ids.length - 1; i > 0; i--) {          // Fisher-Yates
       const j = Math.floor(Math.random() * (i + 1));
       [ids[i], ids[j]] = [ids[j], ids[i]];
     }
-    this.roles.clear(); this.alive.clear(); this.ready.clear();
-    ids.forEach((id, i) => { this.roles.set(id, i < vampire ? 'vampire' : 'villager'); this.alive.add(id); });
+    this.roles.clear(); this.alive.clear(); this.ready.clear(); this.lastProtected.clear();
+    ids.forEach((id, i) => { this.roles.set(id, i < vampire ? 'vampire' : i < vampire + doctor ? 'doctor' : 'villager'); this.alive.add(id); });
     this.gameStarted = true;
     this.transition('ROLE_REVEAL');
   }
@@ -311,7 +326,8 @@ class Host {
     let candidates = [], acted = false, actedCount = 0;
     if (this.phase === 'NIGHT') {
       // Vampire: gerçek hedefler. Köylüler: sahte "kim ölecek?" listesi
-      candidates = alive.filter(p => iAmVamp ? !this.isVamp(p.id) : p.id !== pid);
+      if (role === 'doctor') candidates = alive.filter(p => this.lastProtected.get(pid) !== p.id);   // kendini de koruyabilir
+      else candidates = alive.filter(p => iAmVamp ? !this.isVamp(p.id) : p.id !== pid);
       acted = this.nightChoices.has(pid); actedCount = this.nightChoices.size;
     } else if (this.phase === 'VOTE_TRIAL') {
       acted = this.trialVotes.has(pid); actedCount = this.trialVotes.size;
@@ -357,10 +373,12 @@ class Host {
     const n = this.total();
     if (initial) {
       this.cfg.vampire = 1;
+      this.cfg.doctor = 0;
       this.cfg.villager = Math.max(0, n - 1);
     }
     this.cfg.vampire = Math.max(1, Math.min(this.cfg.vampire, Math.max(1, n)));
-    this.cfg.villager = Math.max(0, Math.min(this.cfg.villager, n - this.cfg.vampire));
+    this.cfg.doctor = Math.max(0, Math.min(this.cfg.doctor || 0, n - this.cfg.vampire));
+    this.cfg.villager = Math.max(0, Math.min(this.cfg.villager, n - this.cfg.vampire - this.cfg.doctor));
   }
 
   lobbyState() {
@@ -376,19 +394,20 @@ class Host {
 }
 
 function updateHostControls(state) {
-  const n = state.players.length, { vampire, villager } = state.cfg, sum = vampire + villager;
+  const n = state.players.length, { vampire, doctor, villager } = state.cfg, sum = vampire + doctor + villager;
   $('cnt-vampire').textContent = vampire;
+  $('cnt-doctor').textContent = doctor;
   $('cnt-villager').textContent = villager;
   document.querySelectorAll('.step').forEach(b => {
     const role = b.dataset.role, d = +b.dataset.d, cur = state.cfg[role];
     b.disabled = d < 0 ? cur <= (role === 'vampire' ? 1 : 0) : sum >= n;
   });
-  const valid = n >= 3 && sum === n && vampire < villager;
+  const valid = n >= 3 && sum === n && vampire < doctor + villager;
   $('btn-start').disabled = !valid;
   $('cfg-hint').textContent =
     n < 3 ? 'En az 3 oyuncu gerekli.' :
     sum !== n ? `Toplam ${n} oyuncu: ${n - sum} rol daha dağıtmalısın.` :
-    vampire >= villager ? 'Vampir sayısı Köylüden az olmalı.' : 'Hazır!';
+    vampire >= doctor + villager ? 'Vampir sayısı diğer rollerden az olmalı.' : 'Hazır!';
 }
 
 /* =====================================================
@@ -514,7 +533,7 @@ document.addEventListener('pointerdown', acquireWakeLock);   // bazı tarayıcı
 document.addEventListener('click', (e) => { if (e.target.closest('button')) buzz(15); });   // genel dokunma titreşimi
 
 /* ===== Oyun durumu istemci tarafı (Host ve Client ortak kullanır) ===== */
-const ROLE_LABEL = { vampire: '🧛 VAMPİR', villager: '🧑‍🌾 KÖYLÜ' };
+const ROLE_LABEL = { vampire: '🧛 VAMPİR', doctor: '🩺 DOKTOR', villager: '🧑‍🌾 KÖYLÜ' };
 const PHASE_LABEL = { ROLE_REVEAL: 'Roller dağıtıldı', NIGHT: '🌙 Gece', DAY: '☀️ Gündüz',
   VOTE_TRIAL: 'Yargılama oylaması', VOTE_EXECUTE: 'İnfaz oylaması', GAME_OVER: 'Oyun bitti' };
 let myRole = sessionStorage.getItem('vk_role');   // önbellek; asıl kaynak Host'tur
@@ -629,7 +648,7 @@ function renderGame(v) {
     if (v.eventText) body.appendChild(el('p', v.eventText, 'banner'));
     if (!me.alive) body.appendChild(el('p', '💀 Öldün. Gece geçiyor…', 'msg'));
     else if (v.acted) { body.appendChild(el('p', '💤 Uyudun.', 'big')); waiting(); }
-    else picker(myRole === 'vampire' ? 'Kimi öldüreceksin?' : 'Sence bu gece kim ölecek?', 'Onayla ve Uyu',
+    else picker(myRole === 'vampire' ? 'Kimi öldüreceksin?' : myRole === 'doctor' ? 'Kimi koruyacaksın?' : 'Sence bu gece kim ölecek?', 'Onayla ve Uyu',
       (t) => sendToHost({ t: 'nightConfirm', target: t }));    // köylü seçimi sahte, host atar
   }
   else if (v.phase === 'DAY') {
@@ -686,7 +705,7 @@ function holdToReveal(cardId, textId, hiddenText) {
   const card = $(cardId), txt = $(textId);
   const show = (e) => { e.preventDefault(); if (!myRole) return;
     txt.textContent = ROLE_LABEL[myRole]; card.classList.add('show', myRole); };
-  const hide = () => { txt.textContent = hiddenText; card.classList.remove('show', 'vampire', 'villager'); };
+  const hide = () => { txt.textContent = hiddenText; card.classList.remove('show', 'vampire', 'doctor', 'villager'); };
   card.addEventListener('pointerdown', show);
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => card.addEventListener(ev, hide));
   card.addEventListener('contextmenu', e => e.preventDefault());

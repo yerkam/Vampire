@@ -38,6 +38,7 @@ input { width:100%; padding:16px; font-size:18px; border-radius:12px; border:1px
 .role-card.mini { min-height:70px; font-size:18px; }
 .role-card.show.vampire { border-color:var(--accent); color:#ff4d6a; }
 .role-card.show.villager { border-color:#3aa76d; color:#5fe39a; }
+.role-card.show.doctor { border-color:#3a8ae0; color:#6fb6ff; }
 #game-players { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
 #game-players li { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
 #game-players li.dead { opacity:.4; text-decoration:line-through; }
@@ -61,7 +62,7 @@ body { min-height:100dvh; padding-bottom:env(safe-area-inset-bottom); -webkit-us
 input { -webkit-user-select:text; user-select:text; }
 #reconnect-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; display:flex;
   align-items:center; justify-content:center; font-size:22px; font-weight:700; z-index:100; }
-/* Ölüm bildirimi: toplam 3s = 0.5s giriþ + 2s bekleme + 0.5s çýkýþ (yalnýzca transform/opacity) */
+/* ï¿½lï¿½m bildirimi: toplam 3s = 0.5s giriï¿½ + 2s bekleme + 0.5s ï¿½ï¿½kï¿½ï¿½ (yalnï¿½zca transform/opacity) */
 #death-overlay { position:fixed; inset:0; z-index:200; overflow:hidden; pointer-events:all; }
 .death-bg { position:absolute; inset:0; background:rgba(180,0,0,.85); opacity:0; animation:death-bg 3s linear forwards; will-change:opacity; }
 .death-content { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
