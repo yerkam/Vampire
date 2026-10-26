@@ -23,6 +23,13 @@ function shuffle(arr) {
   return arr;
 }
 const REPEAT_WEIGHT = 0.35;   // aynı özel rolün üst üste gelme çarpanı (streak başına)
+// Test modu parametreleri (?dev=host|join&room=KOD&name=Ad); normal oyunda boştur
+const DEV_Q = (typeof location !== 'undefined') ? new URLSearchParams(location.search) : new URLSearchParams('');
+const DEV_ROOM = DEV_Q.get('dev') && /^\d{5}$/.test(DEV_Q.get('room') || '') ? DEV_Q.get('room') : null;
+if (DEV_ROOM && typeof sessionStorage !== 'undefined') {
+  sessionStorage.removeItem('vk_room');
+  sessionStorage.setItem('vk_pid', 'dev_' + (DEV_Q.get('name') || Math.random().toString(36).slice(2, 8)));
+}
 const DROUGHT_BONUS = 0.35;   // üst üste köylü kalan oyuncuya özel rol ağırlık bonusu
 
 // --- Kalıcı kimlik (Adım 4'te reconnect için kullanılacak) ---
@@ -44,7 +51,7 @@ const ROLE_DESC = {
   forger: 'Vampir takımındasın ama öldüremezsin. Gece bir hedef seç ve onun için sahte vasiyetname yaz. Hedef o gece ölürse kasaba senin yazdığını okur.',
   doctor: 'Her gece birini koru (kendini de). Üst üste iki gece aynı kişiyi koruyamazsın.',
   bodyguard: 'Gece birini koru (kendini koruyamazsın). Hedefe saldırı olursa saldıranı öldürür, sen de ölürsün.',
-  vigilante: 'Gece birini gizlice vurabilirsin (sınırlı mermi). Masum bir kasabalıyı öldürürsen ertesi gün vicdan azabından intihar edersin.',
+  vigilante: 'Gece birini gizlice vurabilirsin (sınırlı mermi). Masum bir kasabalıyı öldürürsen sabahına vicdan azabından intihar edersin.',
   medium: 'Geceleri Mezarlık sohbetinde ölülerle konuş, öğrendiklerini gündüz kasabaya aktar.',
   investigator: 'Gece bir hedef seç; sabah hedefin hangi 3 rolden biri olabileceğini öğren.',
   tracker: 'Gece bir hedef seç; sabah hedefin o gece kimi ziyaret ettiğini öğren.',
@@ -105,6 +112,7 @@ class Host {
     this.ready = new Set();
     this.round = 0;
     this.nightChoices = new Map();   // pid -> hedef
+    this.vampPicks = new Map();      // vampir id -> anlık seçili hedef (dinamik oylama)
     this.nightTexts = new Map();     // pid -> metin (Sahteci'nin sahte vasiyeti)
     this.trialVotes = new Map();     // pid -> true/false
     this.execVotes = new Map();      // pid -> hedef
@@ -124,7 +132,7 @@ class Host {
   }
 
   start(attempt = 0) {
-    this.code = String(Math.floor(10000 + Math.random() * 90000));   // 5 haneli
+    this.code = (attempt === 0 && DEV_ROOM) ? DEV_ROOM : String(Math.floor(10000 + Math.random() * 90000));   // 5 haneli (test modunda sabit kod)
     this.peer = new Peer(PREFIX + this.code);
     this.peer.on('open', () => {
       this.normalizeCfg(true);
@@ -183,9 +191,15 @@ class Host {
         if ([...this.players.keys()].every(id => this.ready.has(id))) this.transition('NIGHT');
         else this.broadcastState();
         break;
+      case 'vampPick':                                // vampir listeden birini seçtiğinde anlık olarak takımına yansır
+        if (this.phase !== 'NIGHT' || !this.alive.has(pid) || !this.isKiller(pid) || this.nightChoices.has(pid)) return;
+        if (msg.target && this.targetsFor(pid).includes(msg.target)) this.vampPicks.set(pid, msg.target);
+        this.players.forEach((_, id) => { if (this.isVamp(id)) this.sendState(id); });
+        break;
       case 'nightConfirm':
         if (this.phase !== 'NIGHT' || !this.alive.has(pid)) return;
         this.nightChoices.set(pid, msg.target);
+        if (this.isKiller(pid) && msg.target) this.vampPicks.set(pid, msg.target);
         if (typeof msg.text === 'string') this.nightTexts.set(pid, msg.text.slice(0, 300));
         if (this.allActed(this.nightChoices)) this.resolveNight(); else this.broadcastState();
         break;
@@ -200,7 +214,7 @@ class Host {
         if (isAlive && this.roles.get(pid) !== 'medium') return;   // sahte panel: mesaj yutulur
         const text = String(msg.text || '').trim().slice(0, 120);
         if (!text) return;
-        this.graveChat.push({ from: isAlive ? 'Medyum' : this.nameOf(pid), text, dead: !isAlive });
+        this.graveChat.push({ text });
         if (this.graveChat.length > 200) this.graveChat.shift();
         this.broadcastState();
         break;
@@ -267,7 +281,7 @@ class Host {
     if (!Host.TRANSITIONS[this.phase].includes(to)) { console.warn('Geçersiz geçiş', this.phase, to); return; }
     clearTimeout(this.timer);
     this.phase = to;
-    if (to === 'NIGHT') { this.round++; this.nightChoices.clear(); this.nightTexts.clear(); this.nightDead.clear(); }
+    if (to === 'NIGHT') { this.round++; this.nightChoices.clear(); this.vampPicks.clear(); this.nightTexts.clear(); this.nightDead.clear(); }
     else if (to === 'DAY') {
       this.dayEnd = Date.now() + DAY_MS;
       this.timer = setTimeout(() => this.transition('VOTE_TRIAL'), DAY_MS);
@@ -351,7 +365,7 @@ class Host {
     const act = new Map();
     aliveIds.forEach(id => {
       if (!REAL_KINDS.includes(this.kindOf(id))) return;
-      const t = this.nightChoices.get(id);
+      const t = this.nightChoices.get(id) || (this.isKiller(id) ? this.vampPicks.get(id) : null);
       if (t && this.targetsFor(id).includes(t)) act.set(id, t);
     });
     withKind('heal').forEach(id => {                // Doktor: üst üste aynı kişi yasağı
@@ -408,7 +422,8 @@ class Host {
       if (!deaths.has(a.target)) deaths.set(a.target, 'attack');
       if (a.kind === 'shoot' && this.isTown(a.target)) guiltNew.push(a.attacker);
     });
-    guiltNew.forEach(id => { if (!deaths.has(id)) this.guilty.add(id); });
+    // Masum kasabalıyı vuran infazcı aynı gecenin sonunda (direkt sabahına) vicdan azabından intihar eder
+    guiltNew.forEach(id => { if (!deaths.has(id)) deaths.set(id, 'guilt'); });
 
     // 4) Sahteci: hedefi o gece ölürse gerçek vasiyet yerine sahte metin yayınlanır
     const forged = new Map();
@@ -476,7 +491,7 @@ class Host {
 
   clearGameState() {
     this.roles.clear(); this.alive.clear(); this.ready.clear();
-    this.nightChoices.clear(); this.nightTexts.clear(); this.trialVotes.clear(); this.execVotes.clear();
+    this.nightChoices.clear(); this.vampPicks.clear(); this.nightTexts.clear(); this.trialVotes.clear(); this.execVotes.clear();
     this.lastProtected.clear(); this.wills.clear(); this.notes.clear(); this.bullets.clear();
     this.guilty.clear(); this.invGroup.clear(); this.graveChat = []; this.nightDead.clear(); this.deathWills = [];
     this.round = 0; this.eventText = null; this.winner = null;
@@ -549,13 +564,24 @@ class Host {
     const iAmVamp = !!role && VAMP_TEAM.includes(role);
     const meAlive = this.alive.has(pid);
     const alive = [...this.players.values()].filter(p => this.alive.has(p.id));
-    let candidates = [], acted = false, actedCount = 0, kind = null, skip = false, needsText = false;
+    let candidates = [], acted = false, actedCount = 0, kind = null, skip = false, needsText = false, vampSummary = '';
     if (this.phase === 'NIGHT') {
       // Gerçek yeteneği olanlar gerçek hedef listesi, diğerleri sahte "kim ölecek?" listesi görür (anti-meta)
       if (meAlive) {
         kind = this.kindOf(pid);
-        candidates = this.targetsFor(pid).map(id => ({ id, name: this.nameOf(id) }));
-        skip = kind === 'fake' || kind === 'shoot';
+        const killers = iAmVamp ? [...this.alive].filter(id => this.isKiller(id)) : [];
+        const vampCounts = new Map();
+        killers.forEach(kId => {
+          const t = this.nightChoices.get(kId) || this.vampPicks.get(kId);
+          if (t && this.targetsFor(kId).includes(t)) vampCounts.set(t, (vampCounts.get(t) || 0) + 1);
+        });
+        if (vampCounts.size) {
+          vampSummary = '🧛 Vampir hedefi: ' + [...vampCounts].map(([t, c]) => `${this.nameOf(t)} (${c}/${killers.length})`).join(' · ');
+        }
+        candidates = kind === 'fake' ? [] : this.targetsFor(pid).map(id => ({
+          id, name: this.nameOf(id), vampCount: vampCounts.get(id) || 0, vampTotal: killers.length,
+        }));
+        skip = kind === 'shoot';
         needsText = kind === 'forge';
       }
       acted = this.nightChoices.has(pid); actedCount = this.nightChoices.size;
@@ -582,7 +608,7 @@ class Host {
         id: p.id, name: p.name, alive: this.alive.has(p.id), ready: this.ready.has(p.id),
         ally: iAmVamp && this.isVamp(p.id),              // vampir takımı birbirini bilir
       })),
-      candidates, kind, skip, needsText,
+      candidates, kind, skip, needsText, vampSummary,
       bullets: this.bullets.get(pid) || 0,
       acted, actedCount, needed: this.alive.size,
       eventText: this.eventText,
@@ -898,6 +924,7 @@ function renderGame(v) {
   document.body.className = v.phase === 'NIGHT' ? 'night' : (['DAY', 'VOTE_TRIAL', 'VOTE_EXECUTE'].includes(v.phase) ? 'day' : '');
   $('phase-title').textContent = (PHASE_LABEL[v.phase] || v.phase) + (v.round ? ` · ${v.round}. tur` : '');
   $('game-info').textContent = '';
+  $('my-name').textContent = session.name;
   const me = v.players.find(p => p.id === session.id);
   updateTools(v, me);
   const body = $('game-body'); body.innerHTML = '';
@@ -935,8 +962,9 @@ function renderGame(v) {
     const ul = el('div', null, 'pick-list');
     const list = opts.skip ? v.candidates.concat([{ id: 'skip', name: '🚫 Kimse' }]) : v.candidates;
     list.forEach(c => {
-      const b = el('button', c.name, 'btn pick' + (selected === c.id ? ' sel' : ''));
-      b.onclick = () => { selected = c.id; buzz(); renderGame(v); };
+      const label = c.vampCount > 0 ? `${c.name}  ·  🧛 ${c.vampCount}/${c.vampTotal}` : c.name;
+      const b = el('button', label, 'btn pick' + (selected === c.id ? ' sel' : ''));
+      b.onclick = () => { selected = c.id; buzz(); if (v.kind === 'kill') sendToHost({ t: 'vampPick', target: c.id }); else renderGame(v); };
       ul.appendChild(b);
     });
     body.appendChild(ul);
@@ -956,8 +984,13 @@ function renderGame(v) {
 
   if (v.phase === 'NIGHT') {
     banner();
+    if (v.vampSummary) body.appendChild(el('p', v.vampSummary, 'banner'));
     if (!me.alive) body.appendChild(el('p', '💀 Öldün. Gece geçiyor…', 'msg'));
     else if (v.acted) { body.appendChild(el('p', '💤 Uyudun.', 'big')); waiting(); }
+    else if (v.kind === 'fake') {
+      body.appendChild(el('p', '🌙 Bu gece kullanacak bir yeteneğin yok.', 'msg'));
+      body.appendChild(button('💤 Uyu', 'primary', () => { buzz([30, 40, 30]); sendToHost({ t: 'nightConfirm', target: 'skip' }); }));
+    }
     else {
       const titles = {
         kill: 'Kimi öldüreceksin?', forge: 'Kimin vasiyetini sahteleyeceksin?', heal: 'Kimi koruyacaksın?',
@@ -1031,7 +1064,7 @@ function closePanel(id) { $(id).classList.add('hidden'); }
 /* ===== Hakkında paneli: oyun özeti, kurallar, rol rehberi ===== */
 const ABOUT_TEXT = [
   ['🎯 Amaç', 'Kasaba, vampirleri bulup asmaya çalışır. Vampir takımı (Vampir + Sahteci) sayıca kasabaya eşitlenince kazanır. Soytarı\'nın tek amacı asılmaktır.'],
-  ['🔁 Oyun akışı', 'Gece herkes ekranına dokunur (yeteneği olmayanlar sahte liste görür, böylece kimin yetenek kullandığı anlaşılmaz). Sabah ölenler ve vasiyetleri açıklanır, ardından tartışma, yargılama ve infaz oylaması yapılır. Ölenlerin rolü oyun bitene kadar gizli kalır.'],
+  ['🔁 Oyun akışı', 'Gece özel rolü olanlar yeteneklerini kullanır. Sabah ölenler ve vasiyetleri açıklanır, ardından tartışma, yargılama ve infaz oylaması yapılır. Ölenlerin rolü oyun bitene kadar gizli kalır.'],
   ['📝 Vasiyetname', 'Hayattayken istediğin an yazıp güncelleyebilirsin. Öldüğünde herkese açık gösterilir. (Sahteci bunu değiştirebilir.)'],
   ['⚰️ Mezarlık', 'Medyum geceleri ölülerle yazışır. Diğer oyuncular geceleri bu panele bakabilir ama kimse yanıt vermez.'],
 ];
@@ -1074,7 +1107,7 @@ function updateTools(v, me) {
   const real = v.graveChat !== null;
   const log = $('grave-log'); log.innerHTML = '';
   if (!real || !v.graveChat.length) log.appendChild(el('p', real ? 'Henüz kimse konuşmadı.' : 'Mezarlık sessiz… kimse yanıt vermiyor.', 'msg'));
-  if (real) v.graveChat.forEach(m => log.appendChild(el('p', `${m.from}: ${m.text}`, 'grave-msg' + (m.dead ? ' dead' : ''))));
+  if (real) v.graveChat.forEach(m => log.appendChild(el('p', `👻 Anonim: ${m.text}`, 'grave-msg')));
   log.scrollTop = log.scrollHeight;
   const canPost = real ? v.graveCanPost : v.phase === 'NIGHT';
   $('grave-input').disabled = !canPost; $('grave-send').disabled = !canPost;
@@ -1170,3 +1203,32 @@ document.querySelectorAll('.step').forEach(b => b.onclick = () => {
 });
 $('btn-start').onclick = () => host.handleMessage(session.id, { t: 'startGame' });
 
+
+/* ===== Test modu: ?dev=host|join&room=11111&name=Ad (yalnızca test için; normal açılışta çalışmaz) ===== */
+(function devMode() {
+  const mode = DEV_Q.get('dev');
+  if (!mode || !DEV_ROOM) return;
+  const name = DEV_Q.get('name') || mode;
+  $('inp-name').value = name;
+  document.title = name + ' · VK';
+  if (mode === 'host') {
+    $('btn-create').onclick();
+    const need = +DEV_Q.get('players') || 11;
+    // Herkes girince rolleri ayarla: 2 vampir + diğer her özel rolden 1 + 1 köylü, infazcı mermisi 2
+    const iv = setInterval(() => {
+      if (!host || host.phase !== 'LOBBY' || host.total() < need) return;
+      clearInterval(iv);
+      const preset = { vampire: 2, forger: 1, doctor: 1, bodyguard: 1, vigilante: 1, medium: 1, investigator: 1, tracker: 1, jester: 1, bullets: 2 };
+      Object.entries(preset).forEach(([role, value]) => host.handleMessage(session.id, { t: 'setCfg', role, value }));
+    }, 500);
+  } else {
+    $('inp-code').value = DEV_ROOM;
+    let tries = 0;
+    const iv = setInterval(() => {                       // host hazır olana kadar tekrar dene
+      if (client && client.joined) return clearInterval(iv);
+      if (++tries > 40) return clearInterval(iv);
+      if (!client || client.gaveUp) $('btn-join').onclick();
+    }, 3000);
+    setTimeout(() => { if (!client) $('btn-join').onclick(); }, 1500);
+  }
+})();

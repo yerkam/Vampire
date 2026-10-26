@@ -66,14 +66,16 @@
 
     <!-- OYUN -->
     <section id="screen-game" class="screen">
-      <h2 id="phase-title">-</h2>
+      <div id="role-card-mini" class="role-card mini"><span id="role-text-mini">Rolün için basılı tut</span></div>
+      <div class="game-head"><h2 id="phase-title">-</h2><strong id="my-name"></strong><span></span></div>
       <p id="game-info" class="msg"></p>
       <div class="tools">
         <button id="btn-will" class="btn small">📝 Vasiyetname</button>
         <button id="btn-grave" class="btn small hidden">⚰️ Mezarlık</button>
       </div>
       <div id="game-body"></div>
-      <div id="role-card-mini" class="role-card mini"><span id="role-text-mini">Rolün için basılı tut</span></div>
+
+      <h2>Oyuncular</h2>
       <ul id="game-players"></ul>
     </section>
   </main>
