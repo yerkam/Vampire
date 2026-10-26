@@ -18,6 +18,7 @@
       <input id="inp-code" type="tel" inputmode="numeric" maxlength="5" placeholder="Oda kodu">
       <button id="btn-join" class="btn">Odaya Katıl</button>
       <p id="home-msg" class="msg"></p>
+      <button id="btn-about" class="btn small">ℹ️ Hakkında / Roller</button>
     </section>
 
     <!-- LOBİ -->
@@ -41,6 +42,7 @@
         <p class="msg">Host'un oyunu başlatması bekleniyor…</p>
         <p id="cfg-view" class="msg"></p>
       </div>
+      <button id="btn-about-lobby" class="btn small">ℹ️ Hakkında / Roller</button>
       <button id="btn-leave-lobby" class="btn small">🚪 Odadan Ayrıl</button>
     </section>
 
@@ -76,7 +78,16 @@
     </section>
   </main>
 
-    <!-- VASİYETNAME PANELİ -->
+    <!-- HAKKINDA PANELİ -->
+  <div id="about-panel" class="panel hidden">
+    <div class="panel-box">
+      <h2>ℹ️ Hakkında</h2>
+      <div id="about-body"></div>
+      <button id="about-close" class="btn">Kapat</button>
+    </div>
+  </div>
+
+  <!-- VASİYETNAME PANELİ -->
   <div id="will-panel" class="panel hidden">
     <div class="panel-box">
       <h2>📝 Vasiyetname</h2>

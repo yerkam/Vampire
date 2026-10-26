@@ -1028,6 +1028,35 @@ function renderGame(v) {
 function openPanel(id) { $(id).classList.remove('hidden'); }
 function closePanel(id) { $(id).classList.add('hidden'); }
 
+/* ===== Hakkında paneli: oyun özeti, kurallar, rol rehberi ===== */
+const ABOUT_TEXT = [
+  ['🎯 Amaç', 'Kasaba, vampirleri bulup asmaya çalışır. Vampir takımı (Vampir + Sahteci) sayıca kasabaya eşitlenince kazanır. Soytarı\'nın tek amacı asılmaktır.'],
+  ['🔁 Oyun akışı', 'Gece herkes ekranına dokunur (yeteneği olmayanlar sahte liste görür, böylece kimin yetenek kullandığı anlaşılmaz). Sabah ölenler ve vasiyetleri açıklanır, ardından tartışma, yargılama ve infaz oylaması yapılır. Ölenlerin rolü oyun bitene kadar gizli kalır.'],
+  ['📝 Vasiyetname', 'Hayattayken istediğin an yazıp güncelleyebilirsin. Öldüğünde herkese açık gösterilir. (Sahteci bunu değiştirebilir.)'],
+  ['⚰️ Mezarlık', 'Medyum geceleri ölülerle yazışır. Diğer oyuncular geceleri bu panele bakabilir ama kimse yanıt vermez.'],
+];
+function openAbout() {
+  const b = $('about-body'); b.innerHTML = '';
+  ABOUT_TEXT.forEach(([h, t]) => { b.appendChild(el('h3', h, 'about-h')); b.appendChild(el('p', t, 'about-p')); });
+  b.appendChild(el('h3', '🎭 Roller', 'about-h'));
+  const team = (title, roles) => {
+    b.appendChild(el('p', title, 'about-team'));
+    roles.forEach(r => {
+      const c = el('div', null, 'about-role');
+      c.appendChild(el('strong', ROLE_LABEL[r]));
+      c.appendChild(el('p', ROLE_DESC[r]));
+      b.appendChild(c);
+    });
+  };
+  team('Kasaba', TOWN_TEAM);
+  team('Vampir takımı', VAMP_TEAM);
+  team('Tarafsız', ['jester']);
+  openPanel('about-panel');
+}
+$('btn-about').onclick = openAbout;
+$('btn-about-lobby').onclick = openAbout;
+$('about-close').onclick = () => closePanel('about-panel');
+
 function saveWill() {
   sendToHost({ t: 'will', text: $('will-text').value });
   $('will-msg').textContent = 'Kaydedildi ✔';

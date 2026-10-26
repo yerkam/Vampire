@@ -116,3 +116,8 @@ textarea { width:100%; min-height:130px; padding:12px; font-size:16px; border-ra
 .will-card h3, .notes-card h3 { margin:0 0 6px; font-size:15px; color:var(--dim); }
 .will-card p { margin:0; white-space:pre-wrap; word-break:break-word; }
 .notes-card p { margin:4px 0; font-size:15px; }
+.about-h { margin:12px 0 4px; font-size:16px; }
+.about-p { margin:0; color:var(--dim); font-size:15px; line-height:1.4; }
+.about-team { margin:12px 0 4px; color:var(--dim); font-weight:700; text-transform:uppercase; font-size:13px; letter-spacing:.06em; }
+.about-role { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:6px; }
+.about-role p { margin:4px 0 0; font-size:14px; color:var(--dim); }
