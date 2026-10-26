@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b0b12">
+  <title>Vampir Köylü</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <!-- ANA EKRAN -->
+    <section id="screen-home" class="screen active">
+      <h1>🧛 Vampir Köylü</h1>
+      <input id="inp-name" type="text" maxlength="14" placeholder="İsmin" autocomplete="off">
+      <button id="btn-create" class="btn primary">Oda Kur</button>
+      <div class="divider">veya</div>
+      <input id="inp-code" type="tel" inputmode="numeric" maxlength="5" placeholder="Oda kodu">
+      <button id="btn-join" class="btn">Odaya Katıl</button>
+      <p id="home-msg" class="msg"></p>
+    </section>
+
+    <!-- LOBİ -->
+    <section id="screen-lobby" class="screen">
+      <div class="room-code-box">
+        <span>Oda Kodu</span>
+        <strong id="room-code">-----</strong>
+      </div>
+
+      <h2>Oyuncular (<span id="player-count">0</span>)</h2>
+      <ul id="player-list"></ul>
+
+      <div id="host-config" class="hidden">
+        <h2>Rol Dağılımı</h2>
+        <div class="stepper-row">
+          <label>🧛 Vampir</label>
+          <button class="step" data-role="vampire" data-d="-1">−</button>
+          <span id="cnt-vampire">1</span>
+          <button class="step" data-role="vampire" data-d="1">+</button>
+        </div>
+        <div class="stepper-row">
+          <label>🧑‍🌾 Köylü</label>
+          <button class="step" data-role="villager" data-d="-1">−</button>
+          <span id="cnt-villager">2</span>
+          <button class="step" data-role="villager" data-d="1">+</button>
+        </div>
+        <p id="cfg-hint" class="msg"></p>
+        <button id="btn-start" class="btn primary" disabled>Oyunu Başlat</button>
+      </div>
+
+      <div id="client-wait" class="hidden">
+        <p class="msg">Host'un oyunu başlatması bekleniyor…</p>
+        <p id="cfg-view" class="msg"></p>
+      </div>
+      <button id="btn-leave-lobby" class="btn small">🚪 Odadan Ayrıl</button>
+    </section>
+
+    <!-- ROL GÖSTERİMİ -->
+    <section id="screen-role" class="screen">
+      <h1>Rolün</h1>
+      <div id="role-card" class="role-card">
+        <span id="role-text">Görmek için basılı tut</span>
+      </div>
+      <p class="msg">Başkaları görmesin! Bıraktığında gizlenir.</p>
+      <button id="btn-ready" class="btn primary">Rolümü Gördüm, Hazırım</button>
+    </section>
+
+    <!-- ONAY BEKLEME: kimler hazır -->
+    <section id="screen-wait" class="screen">
+      <h1>Hazır mı?</h1>
+      <p id="wait-count" class="msg"></p>
+      <ul id="wait-list"></ul>
+      <p class="msg">Herkes onaylayınca oyun başlayacak…</p>
+    </section>
+
+    <!-- OYUN -->
+    <section id="screen-game" class="screen">
+      <h2 id="phase-title">-</h2>
+      <p id="game-info" class="msg"></p>
+      <div id="game-body"></div>
+      <div id="role-card-mini" class="role-card mini"><span id="role-text-mini">Rolün için basılı tut</span></div>
+      <ul id="game-players"></ul>
+    </section>
+  </main>
+
+  <div id="reconnect-overlay" class="hidden"><div>🔄 Yeniden bağlanılıyor…<br><button id="btn-leave" class="btn">Vazgeç ve Ana Ekrana Dön</button></div></div>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
