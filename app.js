@@ -231,18 +231,18 @@ class Host {
     this.nightChoices.forEach((t, id) => {
       if (this.isVamp(id) && this.alive.has(t) && !this.isVamp(t)) votes.push(t);
     });
-    // Doktor korumalar?: hedef ya??yor olmal? ve bir ?nceki gece korunan ki?i olmamal?
+    // Doktor korumaları: hedef yaşıyor olmalı ve bir önceki gece korunan kişi olmamalı
     [...this.alive].filter(id => this.isDoctor(id)).forEach(id => {
       const t = this.nightChoices.get(id);
       if (t && this.alive.has(t) && this.lastProtected.get(id) !== t) { protectedSet.add(t); this.lastProtected.set(id, t); }
-      else this.lastProtected.delete(id);      // se?im yapmad?/ge?ersiz: k?s?t s?f?rlan?r
+      else this.lastProtected.delete(id);      // seçim yapmadı/geçersiz: kısıt sıfırlanır
     });
     let pool = this.tally(votes)[0];
     if (!pool.length) pool = [...this.alive].filter(id => !this.isVamp(id));   // kimse seçmediyse rastgele
     const victim = pool[Math.floor(Math.random() * pool.length)];
-    if (protectedSet.has(victim)) {                                   // doktor kurtard?
+    if (protectedSet.has(victim)) {                                   // doktor kurtardı
       this.nightVictim = null;
-      this.eventText = '?? Bu gece kimse ?lmedi.';
+      this.eventText = '🌙 Bu gece kimse ölmedi.';
       return this.transition('DAY');
     }
     this.alive.delete(victim);
@@ -584,6 +584,7 @@ function onServerMessage(m) {
 
   if (v.phase === 'ROLE_REVEAL') {
     sessionStorage.removeItem('vk_death');           // yeni oyun: animasyon kaydını sıfırla
+    sessionStorage.removeItem('vk_phase');
     if (!v.ready) return showScreen('screen-role');
     showScreen('screen-wait');                       // onaylayanlar herkese görünür
     $('wait-count').textContent = `${v.readyCount}/${v.total} kişi onayladı`;
@@ -606,11 +607,29 @@ function playDeathAnimation() {
   setTimeout(done, 3500);                   // emniyet: animationend gelmezse temizle
 }
 
+// Gece (hilal) / sabah (güneş) geçiş animasyonu: ~1 sn ekranda kalır
+function playPhaseAnimation(kind) {
+  const old = document.getElementById('phase-overlay'); if (old) old.remove();
+  const o = document.createElement('div');
+  o.id = 'phase-overlay'; o.className = kind;
+  o.innerHTML = '<div class="phase-icon">' + (kind === 'moon' ? '🌙' : '☀️') + '</div>';
+  document.body.appendChild(o);
+  const done = () => o.remove();
+  o.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 2500);                   // emniyet
+}
+
 function renderGame(v) {
   showScreen('screen-game');
   if (v.diedTonight && sessionStorage.getItem('vk_death') !== String(v.round)) {
     sessionStorage.setItem('vk_death', String(v.round));    // aynı tur için tekrar oynatma (reconnect/yenileme)
     playDeathAnimation();
+  }
+  const meAlive = (v.players.find(p => p.id === session.id) || {}).alive;
+  const phaseKey = v.phase + ':' + v.round;
+  if ((v.phase === 'NIGHT' || (v.phase === 'DAY' && meAlive && !v.diedTonight)) && sessionStorage.getItem('vk_phase') !== phaseKey) {
+    sessionStorage.setItem('vk_phase', phaseKey);                // aynı faz için tekrar oynatma (reconnect/yenileme)
+    playPhaseAnimation(v.phase === 'NIGHT' ? 'moon' : 'sun');
   }
   const key = v.phase + ':' + v.round;
   if (key !== selKey) { selKey = key; selected = null; }
