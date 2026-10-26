@@ -32,24 +32,7 @@
 
       <div id="host-config" class="hidden">
         <h2>Rol Dağılımı</h2>
-        <div class="stepper-row">
-          <label>🧛 Vampir</label>
-          <button class="step" data-role="vampire" data-d="-1">−</button>
-          <span id="cnt-vampire">1</span>
-          <button class="step" data-role="vampire" data-d="1">+</button>
-        </div>
-        <div class="stepper-row">
-          <label>🩺 Doktor</label>
-          <button class="step" data-role="doctor" data-d="-1">−</button>
-          <span id="cnt-doctor">0</span>
-          <button class="step" data-role="doctor" data-d="1">+</button>
-        </div>
-        <div class="stepper-row">
-          <label>🧑‍🌾 Köylü</label>
-          <button class="step" data-role="villager" data-d="-1">−</button>
-          <span id="cnt-villager">2</span>
-          <button class="step" data-role="villager" data-d="1">+</button>
-        </div>
+        <div id="role-steppers"></div>
         <p id="cfg-hint" class="msg"></p>
         <button id="btn-start" class="btn primary" disabled>Oyunu Başlat</button>
       </div>
@@ -83,11 +66,43 @@
     <section id="screen-game" class="screen">
       <h2 id="phase-title">-</h2>
       <p id="game-info" class="msg"></p>
+      <div class="tools">
+        <button id="btn-will" class="btn small">📝 Vasiyetname</button>
+        <button id="btn-grave" class="btn small hidden">⚰️ Mezarlık</button>
+      </div>
       <div id="game-body"></div>
       <div id="role-card-mini" class="role-card mini"><span id="role-text-mini">Rolün için basılı tut</span></div>
       <ul id="game-players"></ul>
     </section>
   </main>
+
+    <!-- VASİYETNAME PANELİ -->
+  <div id="will-panel" class="panel hidden">
+    <div class="panel-box">
+      <h2>📝 Vasiyetname</h2>
+      <p class="msg">Ölürsen bu metin herkese açık gösterilir. İstediğin an güncelleyebilirsin.</p>
+      <textarea id="will-text" maxlength="400" placeholder="İpuçları, şüphelerin, araştırma sonuçların…"></textarea>
+      <div class="row">
+        <button id="will-save" class="btn primary">Kaydet</button>
+        <button id="will-close" class="btn">Kapat</button>
+      </div>
+      <p id="will-msg" class="msg"></p>
+    </div>
+  </div>
+
+  <!-- MEZARLIK PANELİ (Medyum + ölüler; diğer canlılar için gece sahte panel) -->
+  <div id="grave-panel" class="panel hidden">
+    <div class="panel-box">
+      <h2>⚰️ Mezarlık</h2>
+      <div id="grave-log"></div>
+      <p id="grave-hint" class="msg"></p>
+      <div class="row">
+        <input id="grave-input" type="text" maxlength="120" placeholder="Mesaj yaz…" autocomplete="off">
+        <button id="grave-send" class="btn primary">Gönder</button>
+      </div>
+      <button id="grave-close" class="btn">Kapat</button>
+    </div>
+  </div>
 
   <div id="reconnect-overlay" class="hidden"><div>🔄 Yeniden bağlanılıyor…<br><button id="btn-leave" class="btn">Vazgeç ve Ana Ekrana Dön</button></div></div>
 

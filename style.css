@@ -87,3 +87,32 @@ input { -webkit-user-select:text; user-select:text; }
 #phase-overlay.sun .phase-icon { filter:drop-shadow(0 0 40px rgba(255,170,0,.8)); }
 @keyframes phase-fade { 0% { opacity:0 } 21% { opacity:1 } 74% { opacity:1 } 100% { opacity:0 } }
 @keyframes phase-pop { 0% { transform:scale(.6) } 21% { transform:scale(1) } 100% { transform:scale(1.08) } }
+
+/* ===== Yeni roller, vasiyetname, mezarlık ===== */
+.role-card { white-space:pre-line; }
+.role-desc { display:block; font-size:15px; font-weight:500; margin-top:12px; color:var(--txt); opacity:.85; }
+.role-card.show.forger { border-color:#d6336c; color:#ff7aa8; }
+.role-card.show.bodyguard { border-color:#4d7cff; color:#8fb0ff; }
+.role-card.show.vigilante { border-color:#e67e22; color:#ffae5c; }
+.role-card.show.medium { border-color:#9b59b6; color:#cf9bea; }
+.role-card.show.investigator { border-color:#1abc9c; color:#6ff0d6; }
+.role-card.show.tracker { border-color:#a0852b; color:#e6c76a; }
+.role-card.show.jester { border-color:#e84393; color:#ff9ad0; }
+
+textarea { width:100%; min-height:130px; padding:12px; font-size:16px; border-radius:12px; border:1px solid var(--line);
+  background:var(--card); color:var(--txt); font-family:inherit; resize:vertical; -webkit-user-select:text; user-select:text; }
+.tools { display:flex; gap:8px; }
+.tools .btn { min-height:44px; font-size:15px; }
+.row { display:flex; gap:8px; align-items:stretch; }
+.row .btn { width:auto; flex:1; }
+.row input { flex:2; text-align:left; font-size:16px; padding:12px; }
+.panel { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.7); display:flex; align-items:flex-end; justify-content:center; }
+.panel-box { width:100%; max-width:480px; max-height:90dvh; overflow:auto; background:var(--bg); color:var(--txt);
+  border:1px solid var(--line); border-radius:20px 20px 0 0; padding:16px; display:flex; flex-direction:column; gap:10px; }
+#grave-log { max-height:40dvh; overflow:auto; display:flex; flex-direction:column; gap:6px; }
+.grave-msg { margin:0; padding:8px 12px; background:var(--card); border:1px solid var(--line); border-radius:10px; word-break:break-word; }
+.grave-msg.dead { color:#b9a7ff; }
+.will-card, .notes-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+.will-card h3, .notes-card h3 { margin:0 0 6px; font-size:15px; color:var(--dim); }
+.will-card p { margin:0; white-space:pre-wrap; word-break:break-word; }
+.notes-card p { margin:4px 0; font-size:15px; }
