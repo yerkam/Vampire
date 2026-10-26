@@ -12,10 +12,10 @@
     <!-- ANA EKRAN -->
     <section id="screen-home" class="screen active">
       <h1>🧛 Vampir Köylü</h1>
-      <input id="inp-name" type="text" maxlength="14" placeholder="İsmin" autocomplete="off">
+      <input id="inp-name" type="text" maxlength="14" placeholder="İsmin" autocomplete="off" aria-label="İsmin">
       <button id="btn-create" class="btn primary">Oda Kur</button>
       <div class="divider">veya</div>
-      <input id="inp-code" type="tel" inputmode="numeric" maxlength="5" placeholder="Oda kodu">
+      <input id="inp-code" type="tel" inputmode="numeric" maxlength="5" placeholder="Oda kodu" aria-label="Oda kodu">
       <button id="btn-join" class="btn">Odaya Katıl</button>
       <p id="home-msg" class="msg"></p>
     </section>
@@ -34,21 +34,21 @@
         <h2>Rol Dağılımı</h2>
         <div class="stepper-row">
           <label>🧛 Vampir</label>
-          <button class="step" data-role="vampire" data-d="-1">−</button>
+          <button class="step" data-role="vampire" data-d="-1" aria-label="Vampir sayısını azalt">−</button>
           <span id="cnt-vampire">1</span>
-          <button class="step" data-role="vampire" data-d="1">+</button>
+          <button class="step" data-role="vampire" data-d="1" aria-label="Vampir sayısını artır">+</button>
         </div>
         <div class="stepper-row">
           <label>🩺 Doktor</label>
-          <button class="step" data-role="doctor" data-d="-1">−</button>
+          <button class="step" data-role="doctor" data-d="-1" aria-label="Doktor sayısını azalt">−</button>
           <span id="cnt-doctor">0</span>
-          <button class="step" data-role="doctor" data-d="1">+</button>
+          <button class="step" data-role="doctor" data-d="1" aria-label="Doktor sayısını artır">+</button>
         </div>
         <div class="stepper-row">
           <label>🧑‍🌾 Köylü</label>
-          <button class="step" data-role="villager" data-d="-1">−</button>
+          <button class="step" data-role="villager" data-d="-1" aria-label="Köylü sayısını azalt">−</button>
           <span id="cnt-villager">2</span>
-          <button class="step" data-role="villager" data-d="1">+</button>
+          <button class="step" data-role="villager" data-d="1" aria-label="Köylü sayısını artır">+</button>
         </div>
         <p id="cfg-hint" class="msg"></p>
         <button id="btn-start" class="btn primary" disabled>Oyunu Başlat</button>
