@@ -34,18 +34,18 @@ const DROUGHT_BONUS = 0.35;   // üst üste köylü kalan oyuncuya özel rol ağ
 
 // --- Kalıcı kimlik (Adım 4'te reconnect için kullanılacak) ---
 /* ===== Rol tanımları ===== */
-const SPECIAL_ROLES = ['vampire', 'forger', 'doctor', 'bodyguard', 'vigilante', 'medium', 'investigator', 'tracker', 'jester'];
+const SPECIAL_ROLES = ['vampire', 'forger', 'doctor', 'bodyguard', 'vigilante', 'medium', 'investigator', 'tracker', 'jester', 'amnesiac'];
 const VAMP_TEAM = ['vampire', 'forger'];
 const TOWN_TEAM = ['villager', 'doctor', 'bodyguard', 'vigilante', 'medium', 'investigator', 'tracker'];
 // Gece davranış türü: 'fake' = gerçek yeteneği yok, ekranda sahte tahmin listesi görür (anti-meta)
 const ROLE_KIND = { vampire: 'kill', forger: 'forge', doctor: 'heal', bodyguard: 'guard', vigilante: 'shoot',
-  medium: 'fake', investigator: 'investigate', tracker: 'track', villager: 'fake', jester: 'fake' };
+  medium: 'fake', investigator: 'investigate', tracker: 'track', villager: 'fake', jester: 'fake', amnesiac: 'fake' };
 const REAL_KINDS = ['kill', 'forge', 'heal', 'guard', 'shoot', 'investigate', 'track'];
 const ROLE_LABEL = { vampire: '🧛 VAMPİR', forger: '🖋️ SAHTECİ', doctor: '🩺 DOKTOR', bodyguard: '🛡️ KORUMA',
   vigilante: '🔫 İNFAZCI', medium: '🔮 MEDYUM', investigator: '🔍 ARAŞTIRMACI', tracker: '👣 İZ SÜRÜCÜ',
-  jester: '🃏 SOYTARI', villager: '🧑‍🌾 KÖYLÜ' };
+  jester: '🃏 SOYTARI', amnesiac: '🧠 UNUTKAN', villager: '🧑‍🌾 KÖYLÜ' };
 const ROLE_NAME = { vampire: 'Vampir', forger: 'Sahteci', doctor: 'Doktor', bodyguard: 'Koruma', vigilante: 'İnfazcı',
-  medium: 'Medyum', investigator: 'Araştırmacı', tracker: 'İz Sürücü', jester: 'Soytarı', villager: 'Köylü' };
+  medium: 'Medyum', investigator: 'Araştırmacı', tracker: 'İz Sürücü', jester: 'Soytarı', amnesiac: 'Unutkan', villager: 'Köylü' };
 const ROLE_DESC = {
   vampire: 'Her gece vampir takımıyla birlikte bir kişiyi öldür. Takımın, kasabadan fazla veya eşit olunca kazanırsın.',
   forger: 'Vampir takımındasın ama öldüremezsin. Gece bir hedef seç ve onun için sahte vasiyetname yaz. Hedef o gece ölürse kasaba senin yazdığını okur.',
@@ -56,6 +56,7 @@ const ROLE_DESC = {
   investigator: 'Gece bir hedef seç; sabah hedefin hangi 3 rolden biri olabileceğini öğren.',
   tracker: 'Gece bir hedef seç; sabah hedefin o gece kimi ziyaret ettiğini öğren.',
   jester: 'Amacın gündüz infaz oylamasında asılmak. Asılırsan tek başına kazanırsın; gece öldürülürsen kaybedersin.',
+  amnesiac: 'Hafızasını kaybetmiş tarafsız rol. Mezarlıkta en az 3 ölü olduğunda, takip eden gecenin başında ölülerden birinin rolünü rastgele hatırlayarak o role dönüşür. Dönüşemeden ölürse veya oyun biterse kaybeder.',
   villager: 'Özel yeteneğin yok. Tartış, oy kullan ve kasabayı vampirlerden kurtar.',
 };
 
@@ -101,7 +102,7 @@ class Host {
     this.conns = new Map();     // playerId -> DataConnection
     this.players = new Map();   // playerId -> {id,name,host,online}
     this.cfg = { vampire: 1, forger: 0, doctor: 0, bodyguard: 0, vigilante: 0, medium: 0, investigator: 0,
-      tracker: 0, jester: 0, villager: 2, bullets: 1 };
+      tracker: 0, jester: 0, amnesiac: 0, villager: 2, bullets: 1 };
     this.roleHistory = new Map();    // oyuncu id -> { lastRole, streak, villagerStreak }
     this.lastProtected = new Map();  // doktor id -> bir önceki gece koruduğu kişi (üst üste aynı kişi yasak)
     // --- Oyun motoru durumu (roller yalnızca burada, asla broadcast edilmez) ---
@@ -123,6 +124,9 @@ class Host {
     this.bullets = new Map();        // infazcı id -> kalan mermi
     this.guilty = new Set();         // masum vuran, bir sonraki gece intihar edecek infazcılar
     this.invGroup = new Map();       // hedef id -> Araştırmacı'ya gösterilen 3 rol (tutarlı kalsın diye saklanır)
+    this.amnesiacTransformed = new Map(); // unutkan id -> dönüştüğü yeni rol
+    this.amnesiacNoticeTonight = false;   // bu gece başında unutkan dönüştü mü (sabah duyurusu için)
+    this.vampNewMembers = [];             // bu gece vampir takımına dönüşen unutkanlar (tek gecelik bildirim)
     this.graveChat = [];             // Mezarlık sohbeti [{from,text,dead}]
     this.winner = null;
     this.nightDead = new Set();      // yalnızca bu gece ölenlere ölüm animasyonu gösterilir
@@ -281,7 +285,11 @@ class Host {
     if (!Host.TRANSITIONS[this.phase].includes(to)) { console.warn('Geçersiz geçiş', this.phase, to); return; }
     clearTimeout(this.timer);
     this.phase = to;
-    if (to === 'NIGHT') { this.round++; this.nightChoices.clear(); this.vampPicks.clear(); this.nightTexts.clear(); this.nightDead.clear(); }
+    if (to === 'NIGHT') {
+      this.round++; this.nightChoices.clear(); this.vampPicks.clear(); this.nightTexts.clear(); this.nightDead.clear();
+      this.amnesiacNoticeTonight = false; this.vampNewMembers = [];
+      this.triggerAmnesiacs();
+    }
     else if (to === 'DAY') {
       this.dayEnd = Date.now() + DAY_MS;
       this.timer = setTimeout(() => this.transition('VOTE_TRIAL'), DAY_MS);
@@ -296,6 +304,23 @@ class Host {
   isKiller(id) { return this.roles.get(id) === 'vampire'; }              // öldürme yetkisi olan
   isDoctor(id) { return this.roles.get(id) === 'doctor'; }
   isTown(id) { return TOWN_TEAM.includes(this.roles.get(id)); }
+  // Mezarlıkta >= 3 ölü olduğunda takip eden gecenin başında hayattaki Unutkan(lar) ölülerden rastgele birinin rolüne dönüşür
+  triggerAmnesiacs() {
+    const deadIds = [...this.players.keys()].filter(id => !this.alive.has(id));
+    if (deadIds.length < 3) return;
+    const pool = deadIds.map(id => this.roles.get(id)).filter(r => r && r !== 'amnesiac');
+    if (!pool.length) return;
+    [...this.alive].filter(id => this.roles.get(id) === 'amnesiac' && !this.amnesiacTransformed.has(id)).forEach(id => {
+      const newRole = pool[Math.floor(secureRandom() * pool.length)];
+      this.roles.set(id, newRole);
+      this.amnesiacTransformed.set(id, newRole);
+      this.amnesiacNoticeTonight = true;
+      if (newRole === 'vigilante') this.bullets.set(id, this.cfg.bullets);
+      this.invGroup.delete(id);
+      this.addNote(id, `🧠 Hafızan yerine geldi! Artık yeni rolün: ${ROLE_LABEL[newRole]}`);
+      if (VAMP_TEAM.includes(newRole)) this.vampNewMembers.push(this.nameOf(id));
+    });
+  }
   nameOf(id) { return this.players.get(id).name; }
   allActed(map) { return [...this.alive].every(id => map.has(id)); }
 
@@ -443,7 +468,8 @@ class Host {
       lines.push(deaths.get(id) === 'guilt' ? `💔 ${nm} vicdan azabından intihar etti.` : `🌙 Bu gece ${nm} öldürüldü.`);
       this.deathWills.push({ name: nm, text: forged.has(id) ? forged.get(id) : (this.wills.get(id) || '') });
     });
-    this.eventText = lines.length ? lines.join('\n') : '🌙 Bu gece kimse ölmedi.';
+    this.eventText = (lines.length ? lines.join('\n') : '🌙 Bu gece kimse ölmedi.') +
+      (this.amnesiacNoticeTonight ? '\n🧠 Unutkan kim olduğunu hatırladı.' : '');
     if (!this.checkWin()) this.transition('DAY');
   }
 
@@ -493,7 +519,9 @@ class Host {
     this.roles.clear(); this.alive.clear(); this.ready.clear();
     this.nightChoices.clear(); this.vampPicks.clear(); this.nightTexts.clear(); this.trialVotes.clear(); this.execVotes.clear();
     this.lastProtected.clear(); this.wills.clear(); this.notes.clear(); this.bullets.clear();
-    this.guilty.clear(); this.invGroup.clear(); this.graveChat = []; this.nightDead.clear(); this.deathWills = [];
+    this.guilty.clear(); this.invGroup.clear(); this.amnesiacTransformed.clear();
+    this.amnesiacNoticeTonight = false; this.vampNewMembers = [];
+    this.graveChat = []; this.nightDead.clear(); this.deathWills = [];
     this.round = 0; this.eventText = null; this.winner = null;
   }
 
@@ -609,6 +637,7 @@ class Host {
         ally: iAmVamp && this.isVamp(p.id),              // vampir takımı birbirini bilir
       })),
       candidates, kind, skip, needsText, vampSummary,
+      teamAlert: (this.phase === 'NIGHT' && iAmVamp && this.vampNewMembers.length) ? '🧛 Yeni bir üye katıldı: ' + this.vampNewMembers.join(', ') : null,
       bullets: this.bullets.get(pid) || 0,
       acted, actedCount, needed: this.alive.size,
       eventText: this.eventText,
@@ -622,6 +651,7 @@ class Host {
       winner: this.winner,
       // Roller yalnızca oyun BİTİNCE açıklanır
       roles: this.phase === 'GAME_OVER' ? Object.fromEntries(this.roles) : null,
+      amnesiacFrom: this.phase === 'GAME_OVER' ? Object.fromEntries(this.amnesiacTransformed) : null,
     };
   }
 
@@ -984,7 +1014,9 @@ function renderGame(v) {
 
   if (v.phase === 'NIGHT') {
     banner();
+    if (v.teamAlert) body.appendChild(el('p', v.teamAlert, 'banner'));
     if (v.vampSummary) body.appendChild(el('p', v.vampSummary, 'banner'));
+    notes();
     if (!me.alive) body.appendChild(el('p', '💀 Öldün. Gece geçiyor…', 'msg'));
     else if (v.acted) { body.appendChild(el('p', '💤 Uyudun.', 'big')); waiting(); }
     else if (v.kind === 'fake') {
@@ -1036,7 +1068,7 @@ function renderGame(v) {
       v.winner === 'villager' ? '🎉 Köylüler kazandı!' :
       v.winner === 'jester' ? '🃏 Soytarı kazandı! Kasaba onu astı.' : '🧛 Vampirler kazandı!', 'big'));
     v.players.forEach(p => body.appendChild(
-      el('p', `${p.name}: ${ROLE_LABEL[v.roles[p.id]]}${p.alive ? '' : ' 💀'}`, 'msg')));
+      el('p', `${p.name}: ${v.roles[p.id] === 'amnesiac' ? '🧠 UNUTKAN (Kaybetti ❌)' : (v.amnesiacFrom && v.amnesiacFrom[p.id] ? '🧠 Unutkan ➔ ' + ROLE_LABEL[v.roles[p.id]] : ROLE_LABEL[v.roles[p.id]])}${p.alive ? '' : ' 💀'}`, 'msg')));
     // Oyun sonu: lobiye dön / odadan ayrıl
     if (host) body.appendChild(button('🏠 Lobiye Dön', 'primary', () => sendToHost({ t: 'backToLobby' })));
     else if (waitingLobby) body.appendChild(el('p', 'Host lobiyi açınca otomatik geçilecek…', 'msg'));
@@ -1083,7 +1115,7 @@ function openAbout() {
   };
   team('Kasaba', TOWN_TEAM);
   team('Vampir takımı', VAMP_TEAM);
-  team('Tarafsız', ['jester']);
+  team('Tarafsız', ['jester', 'amnesiac']);
   openPanel('about-panel');
 }
 $('btn-about').onclick = openAbout;

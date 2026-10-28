@@ -128,3 +128,4 @@ textarea { width:100%; min-height:130px; padding:12px; font-size:16px; border-ra
 .game-head h2 { margin:0; }
 #my-name { text-align:center; font-size:16px; }
 
+.role-card.show.amnesiac { border-color:#00cec9; color:#81ecec; }
