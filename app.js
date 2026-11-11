@@ -28,7 +28,7 @@ const DEV_Q = (typeof location !== 'undefined') ? new URLSearchParams(location.s
 const DEV_ROOM = DEV_Q.get('dev') && /^\d{5}$/.test(DEV_Q.get('room') || '') ? DEV_Q.get('room') : null;
 if (DEV_ROOM && typeof sessionStorage !== 'undefined') {
   sessionStorage.removeItem('vk_room');
-  sessionStorage.setItem('vk_pid', 'dev_' + (DEV_Q.get('name') || Math.random().toString(36).slice(2, 8)));
+  sessionStorage.setItem('vk_pid', 'dev_' + (DEV_Q.get('name') || secureRandom().toString(36).slice(2, 8)));
 }
 const DROUGHT_BONUS = 0.35;   // üst üste köylü kalan oyuncuya özel rol ağırlık bonusu
 
@@ -63,7 +63,7 @@ const ROLE_DESC = {
 const session = {
   get id() {
     let v = sessionStorage.getItem('vk_pid');
-    if (!v) { v = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('vk_pid', v); }
+    if (!v) { v = secureRandom().toString(36).slice(2, 10); sessionStorage.setItem('vk_pid', v); }
     return v;
   },
   get name() { return sessionStorage.getItem('vk_name') || ''; },
@@ -136,7 +136,7 @@ class Host {
   }
 
   start(attempt = 0) {
-    this.code = (attempt === 0 && DEV_ROOM) ? DEV_ROOM : String(Math.floor(10000 + Math.random() * 90000));   // 5 haneli (test modunda sabit kod)
+    this.code = (attempt === 0 && DEV_ROOM) ? DEV_ROOM : String(Math.floor(10000 + secureRandom() * 90000));   // 5 haneli (test modunda sabit kod)
     this.peer = new Peer(PREFIX + this.code);
     this.peer.on('open', () => {
       this.normalizeCfg(true);
@@ -742,12 +742,16 @@ class Client {
 
   start() { this.connect(); }
 
-  // (Yeniden) bağlan: aynı kalıcı id + isim ile 'join' gönderilir, Host rolü/durumu geri yollar
-  connect() {
-    if (this.gaveUp) return;
+  cleanupConnection() {
     clearTimeout(this.retryTimer); clearTimeout(this.connTimer);
     try { this.conn && this.conn.close(); } catch (e) {}
     try { this.peer && this.peer.destroy(); } catch (e) {}
+  }
+
+  // (Yeniden) bağlan: aynı kalıcı id + isim ile 'join' gönderilir, Host rolü/durumu geri yollar
+  connect() {
+    if (this.gaveUp) return;
+    this.cleanupConnection();
     const peer = this.peer = new Peer();
     this.connTimer = setTimeout(() => { if (!this.conn || !this.conn.open) this.lost('timeout'); }, 5000);
     peer.on('open', () => {
@@ -781,9 +785,7 @@ class Client {
 
   giveUp(msg) {
     this.gaveUp = true;
-    clearTimeout(this.retryTimer); clearTimeout(this.connTimer);
-    try { this.conn && this.conn.close(); } catch (e) {}
-    try { this.peer && this.peer.destroy(); } catch (e) {}
+    this.cleanupConnection();
     sessionStorage.removeItem('vk_room'); sessionStorage.removeItem('vk_role');
     myRole = null;
     setOverlay(false);
