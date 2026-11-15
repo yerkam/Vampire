@@ -13,6 +13,10 @@
     <section id="screen-home" class="screen active">
       <h1>🧛 Vampir Köylü</h1>
       <input id="inp-name" type="text" maxlength="14" placeholder="İsmin" autocomplete="off">
+      <select id="game-mode-select">
+        <option value="vampire">Vampir Köylü</option>
+        <option value="sh">Secret Hitler</option>
+      </select>
       <button id="btn-create" class="btn primary">Oda Kur</button>
       <div class="divider">veya</div>
       <input id="inp-code" type="tel" inputmode="numeric" maxlength="5" placeholder="Oda kodu">
@@ -72,12 +76,147 @@
       <div class="tools">
         <button id="btn-will" class="btn small">📝 Vasiyetname</button>
         <button id="btn-grave" class="btn small hidden">⚰️ Mezarlık</button>
+        <button id="btn-about-game" class="btn small">ℹ️ Kurallar / Güçler</button>
       </div>
       <div id="game-body"></div>
 
       <h2>Oyuncular</h2>
       <ul id="game-players"></ul>
     </section>
+
+    <!-- SECRET HITLER OYUN EKRANI (Varsayılan olarak gizli) -->
+    <div id="secret-hitler-container" class="hidden">
+      <!-- Oyun Sonu (Kazanan + tüm roller) -->
+      <div id="sh-gameover-ui" class="sh-section sh-gameover hidden">
+        <h2 id="sh-gameover-title">Oyun Bitti</h2>
+        <p id="sh-gameover-reason" class="msg"></p>
+        <ul id="sh-gameover-roles" class="sh-gameover-roles"></ul>
+        <div id="sh-gameover-actions" class="legislative-actions"></div>
+      </div>
+
+      <!-- 4. Rol ve Durum Bilgisi (Info Panel) -->
+      <div id="sh-info-panel" class="sh-info-panel">
+        <div id="sh-role-card" class="role-card mini">
+          <span id="sh-role-text">Gizli Rolün (Görmek için basılı tut)</span>
+        </div>
+        <div class="sh-status-bar">
+          <span id="sh-phase-badge" class="sh-badge">Hazırlık</span>
+          <span id="sh-deck-counter" class="sh-deck-meta">🃏 Deste: 17 · 🗑️ Çöp: 0</span>
+        </div>
+        <button id="btn-about-sh" class="btn small" type="button">ℹ️ Kurallar / Güçler</button>
+        <p id="sh-gov-status" class="sh-gov-status">
+          Başkan Adayı: <strong id="sh-pres-candidate">—</strong> &nbsp;|&nbsp; Şansölye Adayı: <strong id="sh-chanc-candidate">—</strong>
+        </p>
+        <p id="sh-dead-banner" class="sh-dead-banner hidden">💀 Oyundan çıkarıldın. Oyunu izlemeye devam edebilirsin.</p>
+        <ul id="sh-players" class="sh-players"></ul>
+      </div>
+
+      <!-- 1. Oyun Tahtası (Board UI) -->
+      <div id="sh-board" class="sh-board">
+        <!-- Liberal Yasa Tahtası (0-5) -->
+        <div class="policy-track liberal-track">
+          <div class="track-header">
+            <span>🕊️ Liberal Yasalar</span>
+            <strong><span id="sh-liberal-count">0</span> / 5</strong>
+          </div>
+          <div id="sh-liberal-slots" class="policy-slots">
+            <div class="policy-slot liberal-slot" data-slot="1">1</div>
+            <div class="policy-slot liberal-slot" data-slot="2">2</div>
+            <div class="policy-slot liberal-slot" data-slot="3">3</div>
+            <div class="policy-slot liberal-slot" data-slot="4">4</div>
+            <div class="policy-slot liberal-slot win-slot" data-slot="5">🕊️</div>
+          </div>
+        </div>
+
+        <!-- Faşist Yasa Tahtası (0-6) -->
+        <div class="policy-track fascist-track">
+          <div class="track-header">
+            <span>🐍 Faşist Yasalar</span>
+            <strong><span id="sh-fascist-count">0</span> / 6</strong>
+          </div>
+          <div id="sh-fascist-slots" class="policy-slots">
+            <div class="policy-slot fascist-slot" data-slot="1">1</div>
+            <div class="policy-slot fascist-slot" data-slot="2">2</div>
+            <div class="policy-slot fascist-slot" data-slot="3">3</div>
+            <div class="policy-slot fascist-slot danger-zone" data-slot="4" title="3. yasadan sonra Hitler Şansölye seçilirse Faşistler kazanır">4 ⚠️</div>
+            <div class="policy-slot fascist-slot danger-zone" data-slot="5">5 ⚠️</div>
+            <div class="policy-slot fascist-slot win-slot" data-slot="6">💀</div>
+          </div>
+        </div>
+
+        <!-- Seçim Sayacı (Election Tracker: 0-3) -->
+        <div class="election-tracker-box">
+          <span class="tracker-label">🗳️ Seçim Sayacı (Kaos)</span>
+          <div id="sh-election-tracker" class="tracker-steps">
+            <div class="tracker-token active" data-step="0">0</div>
+            <div class="tracker-token" data-step="1">1</div>
+            <div class="tracker-token" data-step="2">2</div>
+            <div class="tracker-token chaos" data-step="3" title="3 başarısız seçimde destenin en üstündeki yasa doğrudan yürürlüğe girer">3 ⚡</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Şansölye Adayı Seçimi (Nominate UI) -->
+      <div id="sh-nominate-ui" class="sh-section hidden">
+        <h2>🎩 Şansölye Adayını Seç</h2>
+        <div id="sh-nominate-list" class="pick-list"></div>
+      </div>
+
+      <!-- 2. Hükümet Oylaması (Voting UI) -->
+      <div id="sh-voting-ui" class="sh-section hidden">
+        <h2>🗳️ Hükümet Güvenoyu</h2>
+        <p id="sh-vote-prompt" class="msg">Önerilen hükümeti onaylıyor musun?</p>
+        <div class="vote-actions">
+          <button id="btn-vote-ja" class="btn vote-btn ja" type="button">Ja! (Evet)</button>
+          <button id="btn-vote-nein" class="btn vote-btn nein" type="button">Nein! (Hayır)</button>
+        </div>
+      </div>
+
+      <!-- 3. Yasama Ekranı (Legislative UI) -->
+      <div id="sh-legislative-ui" class="sh-section hidden">
+        <h2 id="sh-legislative-title">📜 Yasama Aşaması</h2>
+        <p id="sh-legislative-desc" class="msg">Bir yasa kartı seç ve işlemi onayla.</p>
+        <div id="sh-legislative-hand" class="policy-hand">
+          <!-- Dinamik olarak .policy-card.liberal veya .policy-card.fascist eklenecek -->
+          <button class="policy-card liberal" type="button" data-index="0">
+            <span class="policy-icon">🕊️</span>
+            <span class="policy-name">LİBERAL</span>
+          </button>
+          <button class="policy-card fascist" type="button" data-index="1">
+            <span class="policy-icon">🐍</span>
+            <span class="policy-name">FAŞİST</span>
+          </button>
+          <button class="policy-card fascist" type="button" data-index="2">
+            <span class="policy-icon">🐍</span>
+            <span class="policy-name">FAŞİST</span>
+          </button>
+        </div>
+        <div class="legislative-actions">
+          <button id="btn-policy-discard" class="btn sh-action-btn discard" type="button" disabled>🗑️ Çöpe At (Discard)</button>
+          <button id="btn-policy-enact" class="btn sh-action-btn enact hidden" type="button" disabled>📜 Yürürlüğe Koy (Enact)</button>
+          <button id="btn-policy-veto" class="btn small sh-action-btn veto hidden" type="button">🚫 Veto Teklif Et</button>
+        </div>
+      </div>
+
+      <!-- Veto Onayı: Şansölye veto teklif etti, Başkan karar verir -->
+      <div id="sh-veto-ui" class="sh-section hidden">
+        <h2>🚫 Veto Teklifi</h2>
+        <p id="sh-veto-desc" class="msg"></p>
+        <div id="sh-veto-actions" class="vote-actions hidden">
+          <button id="btn-veto-accept" class="btn vote-btn ja" type="button">Kabul Et</button>
+          <button id="btn-veto-reject" class="btn vote-btn nein" type="button">Reddet</button>
+        </div>
+      </div>
+
+      <!-- Başkanlık Güçleri (Yasa Gözetleme, Soruşturma, Özel Seçim, İnfaz) -->
+      <div id="sh-executive-ui" class="sh-section hidden">
+        <h2 id="sh-exec-title">Başkanlık Gücü</h2>
+        <p id="sh-exec-desc" class="msg"></p>
+        <div id="sh-exec-peek" class="policy-hand hidden"></div>
+        <div id="sh-exec-list" class="pick-list"></div>
+        <button id="btn-exec-ok" class="btn primary hidden" type="button">Tamam</button>
+      </div>
+    </div>
   </main>
 
     <!-- HAKKINDA PANELİ -->
@@ -86,6 +225,16 @@
       <h2>ℹ️ Hakkında</h2>
       <div id="about-body"></div>
       <button id="about-close" class="btn">Kapat</button>
+    </div>
+  </div>
+
+  <!-- SORUŞTURMA SONUCU POP-UP'I (yalnızca gücü kullanan Başkan görür) -->
+  <div id="sh-investigate-panel" class="panel center hidden">
+    <div class="panel-box sh-investigate-box">
+      <h2>🔍 Soruşturma Sonucu</h2>
+      <p id="sh-investigate-name" class="msg"></p>
+      <div id="sh-investigate-party" class="sh-party-badge"></div>
+      <button id="btn-investigate-ok" class="btn primary" type="button">Tamam</button>
     </div>
   </div>
 
@@ -115,6 +264,11 @@
       </div>
       <button id="grave-close" class="btn">Kapat</button>
     </div>
+  </div>
+
+  <div id="countdown-overlay" class="hidden">
+    <div class="countdown-label">Oyun Başlıyor</div>
+    <div id="countdown-number" class="countdown-number">3</div>
   </div>
 
   <div id="reconnect-overlay" class="hidden"><div>🔄 Yeniden bağlanılıyor…<br><button id="btn-leave" class="btn">Vazgeç ve Ana Ekrana Dön</button></div></div>

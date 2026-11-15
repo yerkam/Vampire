@@ -8,8 +8,10 @@ html, body { margin:0; min-height:100%; background:var(--bg); color:var(--txt);
 .hidden { display:none !important; }
 h1 { text-align:center; margin:24px 0; }
 h2 { font-size:16px; color:var(--dim); margin:10px 0 0; }
-input { width:100%; padding:16px; font-size:18px; border-radius:12px; border:1px solid var(--line);
-  background:var(--card); color:var(--txt); text-align:center; }
+input, select { width:100%; padding:16px; font-size:18px; border-radius:12px; border:1px solid var(--line);
+  background:var(--card); color:var(--txt); text-align:center; font-family:inherit; }
+select { min-height:56px; font-weight:600; cursor:pointer; text-align-last:center; outline:none; }
+select option { background:var(--card); color:var(--txt); }
 .btn { width:100%; min-height:56px; padding:14px; font-size:18px; font-weight:600; border-radius:14px;
   border:1px solid var(--line); background:var(--card); color:var(--txt); }
 .btn:active { transform:scale(.97); }
@@ -117,7 +119,7 @@ textarea { width:100%; min-height:130px; padding:12px; font-size:16px; border-ra
 .will-card p { margin:0; white-space:pre-wrap; word-break:break-word; }
 .notes-card p { margin:4px 0; font-size:15px; }
 .about-h { margin:12px 0 4px; font-size:16px; }
-.about-p { margin:0; color:var(--dim); font-size:15px; line-height:1.4; }
+.about-p { margin:0; color:var(--dim); font-size:15px; line-height:1.4; white-space:pre-line; }
 .about-team { margin:12px 0 4px; color:var(--dim); font-weight:700; text-transform:uppercase; font-size:13px; letter-spacing:.06em; }
 .about-role { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:6px; }
 .about-role p { margin:4px 0 0; font-size:14px; color:var(--dim); }
@@ -129,3 +131,174 @@ textarea { width:100%; min-height:130px; padding:12px; font-size:16px; border-ra
 #my-name { text-align:center; font-size:16px; }
 
 .role-card.show.amnesiac { border-color:#00cec9; color:#81ecec; }
+
+/* ===== Secret Hitler Modu Arayüzü ===== */
+:root {
+  --sh-lib:#2b7de9;
+  --sh-lib-bg:rgba(43, 125, 233, 0.14);
+  --sh-lib-text:#74b0ff;
+  --sh-fas:#d63031;
+  --sh-fas-bg:rgba(214, 48, 49, 0.16);
+  --sh-fas-text:#ff7675;
+  --sh-hitler:#8e1b1b;
+  --sh-gold:#e1b12c;
+}
+
+#secret-hitler-container { display:none; flex-direction:column; gap:14px; }
+#secret-hitler-container.active { display:flex; }
+
+/* 4. Rol ve Durum Bilgisi (Info Panel) */
+.sh-info-panel { display:flex; flex-direction:column; gap:10px; }
+.role-card.show.liberal { border-color:var(--sh-lib); color:var(--sh-lib-text); background:var(--sh-lib-bg); }
+.role-card.show.fascist { border-color:var(--sh-fas); color:var(--sh-fas-text); background:var(--sh-fas-bg); }
+.role-card.show.hitler { border-color:#ff4757; color:#ffd32a; background:rgba(142, 27, 27, 0.28); }
+.sh-status-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sh-badge { padding:4px 10px; border-radius:999px; font-size:13px; font-weight:700;
+  background:var(--card); border:1px solid var(--line); color:var(--txt); }
+.sh-deck-meta { font-size:13px; color:var(--dim); }
+.sh-gov-status { margin:0; padding:12px 14px; background:var(--card); border:1px solid var(--line);
+  border-radius:12px; text-align:center; font-size:15px; color:var(--dim); }
+.sh-gov-status strong { color:var(--txt); }
+
+/* 1. Oyun Tahtası (Board UI) */
+.sh-board { display:flex; flex-direction:column; gap:10px; }
+.policy-track { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px;
+  display:flex; flex-direction:column; gap:8px; }
+.policy-track.liberal-track { border-color:rgba(43, 125, 233, 0.45); }
+.policy-track.fascist-track { border-color:rgba(214, 48, 49, 0.45); }
+.track-header { display:flex; align-items:center; justify-content:space-between; font-size:14px; font-weight:700; }
+.liberal-track .track-header { color:var(--sh-lib-text); }
+.fascist-track .track-header { color:var(--sh-fas-text); }
+.policy-slots { display:grid; grid-template-columns:repeat(auto-fit, minmax(44px, 1fr)); gap:6px; }
+.policy-slot { min-height:58px; border-radius:10px; border:1px dashed var(--line); display:flex;
+  align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--dim);
+  background:rgba(0, 0, 0, 0.2); transition:transform .2s, background .2s, border-color .2s; }
+.policy-slot.liberal-slot.enacted { background:var(--sh-lib); border:1px solid #68a8ff; color:#fff;
+  box-shadow:0 0 12px rgba(43, 125, 233, 0.35); }
+.policy-slot.fascist-slot.danger-zone { border-color:rgba(225, 177, 44, 0.55); color:var(--sh-gold); }
+.policy-slot.fascist-slot.enacted { background:var(--sh-fas); border:1px solid #ff7675; color:#fff;
+  box-shadow:0 0 12px rgba(214, 48, 49, 0.35); }
+.policy-slot.win-slot { font-size:18px; }
+
+/* Seçim Sayacı (Election Tracker) */
+.election-tracker-box { background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.tracker-label { font-size:14px; font-weight:600; color:var(--dim); }
+.tracker-steps { display:flex; align-items:center; gap:8px; }
+.tracker-token { width:34px; height:34px; border-radius:50%; border:1px solid var(--line);
+  background:rgba(0, 0, 0, 0.25); color:var(--dim); font-size:13px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; transition:all .2s; }
+.tracker-token.chaos { width:auto; padding:0 10px; border-radius:999px; }
+.tracker-token.active { background:var(--sh-gold); border-color:#fff; color:#111;
+  transform:scale(1.08); box-shadow:0 0 10px rgba(225, 177, 44, 0.5); }
+.tracker-token.chaos.active { background:var(--sh-fas); color:#fff; }
+
+/* Ortak Bölüm Kutusu */
+.sh-section { background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:14px; display:flex; flex-direction:column; gap:12px; }
+.sh-section h2 { margin:0; text-align:center; color:var(--txt); }
+
+/* 2. Hükümet Oylaması (Voting UI) */
+.vote-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.vote-btn { font-size:19px; font-weight:800; letter-spacing:.02em; }
+.vote-btn.ja { background:#1e293b; border:2px solid #38bdf8; color:#e0f2fe; }
+.vote-btn.ja.sel, .vote-btn.ja:active { background:#0284c7; border-color:#bae6fd; color:#fff; }
+.vote-btn.nein { background:#2a161b; border:2px solid #f43f5e; color:#ffe4e6; }
+.vote-btn.nein.sel, .vote-btn.nein:active { background:#e11d48; border-color:#fecdd3; color:#fff; }
+
+/* 3. Yasama Ekranı (Legislative UI) */
+.policy-hand { display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:10px; }
+.policy-card { min-height:132px; border-radius:14px; border:2px solid var(--line); padding:14px 10px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  cursor:pointer; font-family:inherit; font-weight:800; transition:transform .16s, box-shadow .16s, border-color .16s; }
+.policy-card .policy-icon { font-size:34px; line-height:1; }
+.policy-card .policy-name { font-size:14px; letter-spacing:.08em; }
+.policy-card.liberal { background:linear-gradient(160deg, #1b3a6b, #102342); border-color:var(--sh-lib); color:#d8e9ff; }
+.policy-card.fascist { background:linear-gradient(160deg, #6b1b23, #3b0d12); border-color:var(--sh-fas); color:#ffd8d8; }
+.policy-card.sel { transform:translateY(-5px) scale(1.02); border-color:#fff;
+  box-shadow:0 8px 20px rgba(0, 0, 0, 0.45); }
+.legislative-actions { display:flex; flex-direction:column; gap:8px; }
+.sh-action-btn.discard { background:#3a2229; border-color:var(--sh-fas); color:#ffb8b8; }
+.sh-action-btn.enact { background:#1c3d6e; border-color:var(--sh-lib); color:#d4e8ff; }
+.sh-action-btn.veto { border-color:var(--sh-gold); color:var(--sh-gold); }
+
+/* Başkanlık güçleri */
+.policy-card.peek { cursor:default; animation:peek-flip .5s ease-out backwards; }
+.policy-card.peek:nth-child(2) { animation-delay:.12s; }
+.policy-card.peek:nth-child(3) { animation-delay:.24s; }
+@keyframes peek-flip {
+  0% { transform:rotateY(90deg) translateY(10px); opacity:0; }
+  100% { transform:rotateY(0) translateY(0); opacity:1; }
+}
+.panel.center { align-items:center; padding:16px; z-index:210; }
+.panel.center .panel-box { border-radius:20px; align-items:stretch; text-align:center; animation:sh-pop .35s cubic-bezier(.2,.9,.3,1.2); }
+.sh-party-badge { padding:22px 12px; border-radius:16px; border:2px solid var(--line); font-size:30px; font-weight:900; letter-spacing:.06em; }
+.sh-party-badge.liberal { border-color:var(--sh-lib); color:var(--sh-lib-text); background:var(--sh-lib-bg); }
+.sh-party-badge.fascist { border-color:var(--sh-fas); color:var(--sh-fas-text); background:var(--sh-fas-bg); }
+
+/* Oyuncu sırası ve ölenler */
+.sh-players { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px; }
+.sh-players li { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:14px; }
+.sh-players li.dead { opacity:.4; text-decoration:line-through; }
+.sh-dead-banner { margin:0; padding:10px 14px; text-align:center; font-size:14px; border-radius:12px;
+  background:rgba(142, 27, 27, 0.25); border:1px solid var(--sh-fas); color:#ffd8d8; }
+
+/* Oyun sonu */
+.sh-gameover-title { font-size:24px; font-weight:900; letter-spacing:.06em; }
+.sh-gameover-title.liberal { color:var(--sh-lib-text); }
+.sh-gameover-title.fascist { color:var(--sh-fas-text); }
+.sh-gameover.sh-section { animation:sh-pop .45s cubic-bezier(.2,.9,.3,1.2); }
+.sh-gameover-roles { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+.sh-gameover-roles li { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px;
+  border-radius:10px; border:1px solid var(--line); background:rgba(0, 0, 0, 0.2); }
+.sh-gameover-roles li.role-liberal { border-color:rgba(43, 125, 233, 0.55); background:var(--sh-lib-bg); }
+.sh-gameover-roles li.role-liberal strong { color:var(--sh-lib-text); }
+.sh-gameover-roles li.role-fascist { border-color:rgba(214, 48, 49, 0.55); background:var(--sh-fas-bg); }
+.sh-gameover-roles li.role-fascist strong { color:var(--sh-fas-text); }
+.sh-gameover-roles li.role-hitler { border-color:#ff4757; background:rgba(142, 27, 27, 0.35); }
+.sh-gameover-roles li.role-hitler strong { color:#ffd32a; }
+
+/* Olay animasyonları (yasa, idam, soruşturma...) */
+.sh-overlay { position:fixed; inset:0; z-index:220; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:rgba(0, 0, 0, 0.78); animation:sh-fade-in .25s ease-out; cursor:pointer; }
+.sh-overlay.out { animation:sh-fade-out .35s ease-in forwards; }
+.sh-overlay-box { width:100%; max-width:380px; text-align:center; padding:28px 20px; border-radius:22px;
+  background:var(--card); border:2px solid var(--line); animation:sh-pop .45s cubic-bezier(.2,.9,.3,1.2); }
+.sh-overlay-icon { font-size:72px; line-height:1; }
+.sh-overlay-title { margin-top:12px; font-size:26px; font-weight:900; letter-spacing:.08em; }
+.sh-overlay-text { margin-top:10px; font-size:15px; color:var(--dim); line-height:1.4; }
+.sh-overlay.liberal .sh-overlay-box { border-color:var(--sh-lib); background:linear-gradient(160deg, #1b3a6b, #102342); box-shadow:0 0 40px rgba(43, 125, 233, 0.55); }
+.sh-overlay.liberal .sh-overlay-title { color:#d8e9ff; }
+.sh-overlay.fascist .sh-overlay-box { border-color:var(--sh-fas); background:linear-gradient(160deg, #6b1b23, #3b0d12); box-shadow:0 0 40px rgba(214, 48, 49, 0.55); }
+.sh-overlay.fascist .sh-overlay-title { color:#ffd8d8; }
+.sh-overlay.execution .sh-overlay-box { border-color:#ff4757; background:linear-gradient(160deg, #3b0d12, #12060a); box-shadow:0 0 50px rgba(255, 71, 87, 0.5); animation:sh-pop .45s cubic-bezier(.2,.9,.3,1.2), sh-shake .5s .3s; }
+.sh-overlay.execution .sh-overlay-title { color:#ff6b7a; }
+.sh-overlay.liberal .sh-overlay-text, .sh-overlay.fascist .sh-overlay-text, .sh-overlay.execution .sh-overlay-text { color:#e8e8f0; }
+@keyframes sh-fade-in { from { opacity:0; } to { opacity:1; } }
+@keyframes sh-fade-out { to { opacity:0; } }
+@keyframes sh-pop { 0% { transform:scale(.6); opacity:0; } 100% { transform:scale(1); opacity:1; } }
+@keyframes sh-shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-8px); } 75% { transform:translateX(8px); } }
+
+/* Oyun başlangıcı 3-2-1 geri sayım overlay'i */
+#countdown-overlay {
+  position:fixed; inset:0; z-index:250;
+  background:radial-gradient(circle, rgba(23, 23, 34, 0.96) 0%, rgba(11, 11, 18, 0.99) 100%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; pointer-events:all;
+}
+.countdown-label {
+  font-size:18px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--dim);
+}
+.countdown-number {
+  font-size:32vmin; font-weight:900; color:var(--txt); line-height:1;
+  text-shadow:0 0 36px rgba(179, 18, 46, 0.8);
+  animation:countdown-pop 1s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes countdown-pop {
+  0% { transform:scale(0.45); opacity:0; }
+  30% { transform:scale(1.08); opacity:1; }
+  80% { transform:scale(1); opacity:1; }
+  100% { transform:scale(0.85); opacity:0.15; }
+}
+
+
